@@ -11,3 +11,9 @@ pipeline:
     insecure: true
     auto_tag: true
     tags: latest
+
+  pipeline:
+    slack:
+      image: plugins/slack
+      channel: bot
+      secrets: [ slack_webhook ]
