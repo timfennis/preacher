@@ -8,5 +8,6 @@ pipeline:
     image: plugins/docker
     repo: registry.fritz.box:5000/preacher
     registry: registry.fritz.box:5000
+    insecure: true
     auto_tag: true
     tags: latest
