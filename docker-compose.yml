@@ -1,0 +1,17 @@
+version: "2"
+services:
+  application:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8080:8080
+    links:
+      - arango
+
+  arango:
+    image: arangodb:3.3
+    ports:
+      - 8529:8529
+    environment:
+      - ARANGO_NO_AUTH=1
