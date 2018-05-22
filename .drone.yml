@@ -11,8 +11,14 @@ pipeline:
     insecure: true
     auto_tag: true
     tags: latest
+    when:
+      branch: master
 
   slack:
     image: plugins/slack
     channel: bot
     secrets: [ slack_webhook ]
+    image_url: https://cdn.marketeer.space/drone-icon.png
+    username: Drone
+    when:
+      status: [ success, failure ]
