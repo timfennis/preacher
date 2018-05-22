@@ -1,0 +1,12 @@
+pipeline:
+  compile:
+    image: openjdk:10-jdk
+    commands:
+      - ./gradlew installDist
+
+  publish:
+    image: plugins/docker
+    repo: registry.fritz.box:5000/preacher
+    registry: registry.fritz.box:5000
+    auto_tag: true
+    tags: latest
