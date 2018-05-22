@@ -18,7 +18,7 @@ pipeline:
     image: plugins/slack
     channel: bot
     secrets: [ slack_webhook ]
-    image_url: https://cdn.marketeer.space/drone-icon.png
+    icon_url: https://cdn.marketeer.space/drone-icon.png
     username: Drone
     when:
       status: [ success, failure ]
