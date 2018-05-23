@@ -25,6 +25,7 @@ class NotificationSender(
 
     private fun sendNotification(message: Message): Boolean {
         return try {
+            println("Sending notification to device")
             fcm.send(message)
             true
         } catch (e: FirebaseMessagingException) {

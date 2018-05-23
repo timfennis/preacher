@@ -13,10 +13,10 @@ class PreacherConsumer(channel: Channel, val notificationSender: NotificationSen
 
     override fun handleDelivery(consumerTag: String?, envelope: Envelope?, properties: AMQP.BasicProperties?, body: ByteArray?) {
         if (envelope == null) return
-
-        println("consumerTag: $consumerTag\r\n\tenvelope: $envelope\r\n\tproperties: ${properties.toString()}\r\n\tbody: ${body.toString()}")
-
         val text = body?.let { String(it) }
+
+        println("consumerTag: $consumerTag\r\n\tenvelope: $envelope\r\n\tproperties: ${properties.toString()}\r\n\tbody: $text")
+
         val event = Gson().fromJson(text, Event::class.java)
         val userId = event._metadata["userId"]
 
@@ -32,6 +32,7 @@ class PreacherConsumer(channel: Channel, val notificationSender: NotificationSen
                     event.companyId?.let { putData("companyId", it) }
                 }
 
+                println("Handing over message to notification sender")
                 notificationSender.broadcastMessageToUserId(userId, messageBuilder)
                 channel.basicAck(envelope.deliveryTag, false)
             }
