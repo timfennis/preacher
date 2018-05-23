@@ -8,6 +8,7 @@ import com.google.firebase.messaging.Notification
 import space.marketeer.preacher.arangodb.getDocument
 import space.marketeer.preacher.model.DeviceInfo
 import space.marketeer.preacher.model.User
+import java.time.Instant
 
 class NotificationSender(
         val fcm: FirebaseMessaging,
@@ -15,14 +16,14 @@ class NotificationSender(
 ) {
 
 
-    fun simpleMessage(deviceInfo: DeviceInfo, messageTitle: String, messageText: String): Message {
+    private fun simpleMessage(deviceInfo: DeviceInfo, messageTitle: String, messageText: String): Message {
         return Message.builder()
                 .setToken(deviceInfo.token)
                 .setNotification(Notification(messageTitle, messageText))
                 .build()
     }
 
-    fun sendNotification(message: Message): Boolean {
+    private fun sendNotification(message: Message): Boolean {
         return try {
             fcm.send(message)
             true
@@ -43,8 +44,26 @@ class NotificationSender(
         return failedDevices
     }
 
-    fun broadcastNotificationToUserId(userId: String, messageTitle: String, messageText: String) {
-        this.broadcastNotificationToUser(users.getDocument(userId), messageTitle, messageText)
+    fun broadcastMessageToUserId(userId: String, msgBuilder: Message.Builder) {
+
+        val failedDevices = HashSet<DeviceInfo>()
+        val user: User = users.getDocument(userId)
+
+        user.devices.forEach {
+            msgBuilder.setToken(it.token)
+            msgBuilder.putData("timestamp", Instant.now().toEpochMilli().toString())
+
+            if (!sendNotification(msgBuilder.build())) {
+                failedDevices.add(it)
+            }
+        }
+
+
+        if (failedDevices.isNotEmpty()) {
+            user.devices = user.devices.filterNot { failedDevices.contains(it) }.toHashSet()
+            println("Removing failed devices from ${user.key}")
+            users.updateDocument(user.key, user)
+        }
     }
 
 

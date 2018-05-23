@@ -1,5 +1,6 @@
 package space.marketeer.preacher.rabbitmq
 
+import com.google.firebase.messaging.Message
 import com.google.gson.Gson
 import com.rabbitmq.client.AMQP
 import com.rabbitmq.client.Channel
@@ -21,12 +22,17 @@ class PreacherConsumer(channel: Channel, val notificationSender: NotificationSen
 
         when (userId) {
             null -> {
-                println("nacking")
                 channel.basicNack(envelope.deliveryTag, false, false)
             }
             else -> {
-                println("acking")
-                notificationSender.broadcastNotificationToUserId(userId, "Test", "Event: ${event.name} occurred")
+                val messageBuilder = Message.builder().apply {
+                    putData("eventName", event.name)
+                    event.gameId?.let { putData("gameId", it) }
+                    event.roundId?.let { putData("roundId", it) }
+                    event.companyId?.let { putData("companyId", it) }
+                }
+
+                notificationSender.broadcastMessageToUserId(userId, messageBuilder)
                 channel.basicAck(envelope.deliveryTag, false)
             }
         }
@@ -34,10 +40,10 @@ class PreacherConsumer(channel: Channel, val notificationSender: NotificationSen
 
     class Event {
         var name: String? = null
-        var _metadata: Map<String, String?> = HashMap()
-    }
+        val gameId: String? = null
+        val roundId: String? = null
+        val companyId: String? = null
 
-    class Metadata {
-        var userId: String? = null
+        var _metadata: Map<String, String?> = HashMap()
     }
 }
