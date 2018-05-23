@@ -4,6 +4,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      ARANGO_HOST: 'arangodb'
+      ARANGO_USER: 'preacher'
+      ARANGO_PORT: 8529
+      ARANGO_PASSWORD: '7XtN9PkHW5HjiWh3DS8Mm9kF2vPh32v3cs9Ba2Nuyg8Mc31T28q32V3NRNfZwaY6'
+      GOOGLE_SERVICES_JSON_PATH: '/app/google-services.json'
+      RABBITMQ_URL: 'amqp://rabbitmq:rabbitmq@localhost/'
+      SENTRY_DSN: https://882d71df803d43578534eb7e0283f6a8:85a384c58643479191a6ec852f5775f1@sentry.timfennis.com/4
     ports:
       - 8080:8080
     links:

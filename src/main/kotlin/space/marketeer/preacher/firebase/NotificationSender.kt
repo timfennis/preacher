@@ -1,14 +1,19 @@
-package com.timfennis.notification
+package space.marketeer.preacher.firebase
 
+import com.arangodb.ArangoCollection
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.FirebaseMessagingException
 import com.google.firebase.messaging.Message
 import com.google.firebase.messaging.Notification
-import io.sentry.Sentry
-import io.sentry.event.BreadcrumbBuilder
+import space.marketeer.preacher.arangodb.getDocument
+import space.marketeer.preacher.model.DeviceInfo
+import space.marketeer.preacher.model.User
 
-class NotificationSender {
-    private val fcm: FirebaseMessaging by lazy { FirebaseMessaging.getInstance() }
+class NotificationSender(
+        val fcm: FirebaseMessaging,
+        val users: ArangoCollection
+) {
+
 
     fun simpleMessage(deviceInfo: DeviceInfo, messageTitle: String, messageText: String): Message {
         return Message.builder()
@@ -22,12 +27,11 @@ class NotificationSender {
             fcm.send(message)
             true
         } catch (e: FirebaseMessagingException) {
-//            Sentry.getContext().breadcrumbs.add(BreadcrumbBuilder().setMessage(e.message).build())
             false
         }
     }
 
-    fun sendNotificationToUser(user: User, messageTitle: String, messageText: String): Set<DeviceInfo> {
+    fun broadcastNotificationToUser(user: User, messageTitle: String, messageText: String): Set<DeviceInfo> {
         val failedDevices = HashSet<DeviceInfo>()
 
         user.devices.forEach {
@@ -38,4 +42,10 @@ class NotificationSender {
 
         return failedDevices
     }
+
+    fun broadcastNotificationToUserId(userId: String, messageTitle: String, messageText: String) {
+        this.broadcastNotificationToUser(users.getDocument(userId), messageTitle, messageText)
+    }
+
+
 }

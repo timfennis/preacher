@@ -31,3 +31,5 @@ out/
 !gradle-wrapper.jar
 
 build.sh
+
+google-services.json

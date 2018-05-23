@@ -1,16 +1,11 @@
-package com.timfennis.notification
+package space.marketeer.preacher.http
 
 import com.arangodb.ArangoDB
-import com.arangodb.ArangoDBException
-import com.arangodb.velocypack.module.jdk8.VPackJdk8Module
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.messaging.FirebaseMessaging
-import com.google.firebase.messaging.FirebaseMessagingException
-import com.google.firebase.messaging.Message
-import com.google.firebase.messaging.Notification
 import io.ktor.application.call
 import io.ktor.application.install
 import io.ktor.features.ContentNegotiation
+import io.ktor.features.StatusPages
 import io.ktor.features.toLogString
 import io.ktor.gson.gson
 import io.ktor.http.HttpStatusCode
@@ -24,19 +19,15 @@ import io.ktor.routing.routing
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.sentry.Sentry
+import space.marketeer.preacher.COLLECTION_NAME
+import space.marketeer.preacher.DATABASE_NAME
+import space.marketeer.preacher.arangodb.getDocument
+import space.marketeer.preacher.firebase.NotificationSender
+import space.marketeer.preacher.model.DeviceInfo
+import space.marketeer.preacher.model.User
 import java.text.DateFormat
 
-fun runServer() {
-    initFirebase(System.getenv("GOOGLE_SERVICES_JSON_PATH"))
-
-    val arangoDb by lazy {
-        ArangoDB.Builder()
-                .host(System.getenv("ARANGO_HOST"), System.getenv("ARANGO_PORT").toInt())
-                .user(System.getenv("ARANGO_USER"))
-                .password(System.getenv("ARANGO_PASSWORD"))
-                .registerModule(VPackJdk8Module())
-                .build()
-    }
+fun runServer(arangoDb: ArangoDB, notificationSender: NotificationSender) {
 
     val notification by lazy {
         arangoDb.db(DATABASE_NAME)
@@ -51,6 +42,17 @@ fun runServer() {
             gson {
                 setDateFormat(DateFormat.LONG)
                 setPrettyPrinting()
+            }
+        }
+
+        install(StatusPages) {
+            exception<ContentTransformationException> { cause ->
+                Sentry.capture(cause)
+                call.respond(HttpStatusCode.BadRequest, cause.message ?: "")
+            }
+            exception<Throwable> { cause ->
+                Sentry.capture(cause)
+                call.respond(HttpStatusCode.InternalServerError)
             }
         }
 
@@ -72,7 +74,7 @@ fun runServer() {
                 }
 
                 recipients.forEach {
-                    val failedDevices = NotificationSender().sendNotificationToUser(it, messageTitle, messageText)
+                    val failedDevices = notificationSender.broadcastNotificationToUser(it, messageTitle, messageText)
 
                     if (failedDevices.isNotEmpty()) {
                         it.devices = it.devices.filterNot { failedDevices.contains(it) }.toHashSet()
@@ -88,28 +90,22 @@ fun runServer() {
                 Sentry.getContext().addExtra("request", call.request.toLogString())
                 println(call.request.toLogString())
 
-                try {
-                    val token = call.request.header("Authorization")?.removePrefix("Bearer ")
-                    val deviceInfo = call.receive<DeviceInfo>()
-                    val firebaseUser = FirebaseAuth.getInstance().verifyIdToken(token)
-                    val user = User(firebaseUser.uid, setOf(deviceInfo))
+                val token = call.request.header("Authorization")?.removePrefix("Bearer ")
+                val deviceInfo = call.receive<DeviceInfo>()
+                val firebaseUser = FirebaseAuth.getInstance().verifyIdToken(token)
+                val user = User(firebaseUser.uid, setOf(deviceInfo))
 
-                    if (users.documentExists(user.key)) {
-                        val existingUser = users.getDocument<User>(user.key)
-                        user.devices = user.devices.plus(existingUser.devices)
-                        //@todo merge devices
-                        users.updateDocument(user.key, user)
-                    } else {
-                        users.insertDocument(user)
-                    }
-                    call.respond(HttpStatusCode.Accepted)
-                } catch (e: ArangoDBException) {
-                    Sentry.capture(e)
-                    call.respond(HttpStatusCode.InternalServerError)
-                } catch (e: ContentTransformationException) {
-                    Sentry.capture(e)
-                    call.respond(HttpStatusCode.BadRequest, e.message ?: "")
+                if (users.documentExists(user.key)) {
+                    val existingUser = users.getDocument<User>(user.key)
+                    user.devices = user.devices.plus(existingUser.devices)
+                    //@todo merge devices
+                    users.updateDocument(user.key, user)
+                } else {
+                    users.insertDocument(user)
                 }
+
+                call.respond(HttpStatusCode.Accepted)
+
             }
 
             get {
@@ -117,7 +113,4 @@ fun runServer() {
             }
         }
     }.start(wait = true)
-
-    println("Sutting down ArrangoDB")
-    arangoDb.shutdown()
 }

@@ -1,4 +1,4 @@
-package com.timfennis.notification
+package space.marketeer.preacher.arangodb
 
 import com.arangodb.ArangoCollection
 

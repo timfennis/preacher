@@ -1,4 +1,4 @@
-package com.timfennis.notification
+package space.marketeer.preacher.firebase
 
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.firebase.FirebaseApp
